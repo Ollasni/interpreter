@@ -31,7 +31,7 @@ class Lexem {
 	LEXEM_TYPE lexem_type;
 public:
 	Lexem();
-	virtual ~Lexem();
+	virtual ~Lexem() {}
 	void setType(LEXEM_TYPE);
 	LEXEM_TYPE getLexType() {
 		return lexem_type;
@@ -49,6 +49,7 @@ class Number: public Lexem {
 public:
 	Number(int value);
 	int getValue();
+	//~Number();
 };
 
 Number::Number(int value) {
@@ -129,14 +130,18 @@ Number *checkNumber(string codeline, int *ind) {
 
 vector<Lexem *> parseLexem (string codeline) {
 	vector<Lexem *> infix;
-	for(int i = 0; i < codeline.size(); i++) {
+	int i;
+	//cout << "codsize" << codeline.size() << endl;
+	for(i = 0; i < codeline.size(); i++) {
 		Oper *ptrO = checkOperator(codeline, &i);
 		if(ptrO)
-				infix.push_back(ptrO);
+			infix.push_back(ptrO);
 		Number *ptrN = checkNumber(codeline, &i);
 		if(ptrN)
 			infix.push_back(ptrN);
 	}
+	//cout << "isize" << i << endl;
+	//cout << "inf" << infix.size() << endl;
 	return infix;
 }
 
@@ -207,6 +212,23 @@ vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 	return postfix;
 }
 
+
+void print(std::vector <Lexem *> vec) {
+	for(int i = 0; i < vec.size(); i++) {	
+		if(vec[i]->getLexType() == NUMBER) {
+			Number *num = dynamic_cast<Number *> (vec[i]);
+			cout << (num->getValue()) << " ";
+	}
+		if(vec[i]->getLexType() == OPERATORS) {
+                        Oper *oper = dynamic_cast<Oper *>(vec[i]);
+			OPERATOR val = oper->getType();
+			cout << OPERATOR_STRING[val] << " ";
+		}
+	}
+	cout << endl;
+	return;
+}
+
 int main() {
 
 	string codeline;
@@ -216,6 +238,7 @@ int main() {
 
 	while(std::getline(std::cin, codeline)) {
 		infix = parseLexem(codeline);
+		print(infix);
 		postfix = buildPoliz(infix);
 		value = evaluatePoliz(postfix);
 		std::cout << value << std::endl;
