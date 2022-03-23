@@ -2,29 +2,33 @@
 #include <string>
 #include <vector>
 #include <stack>
+#include <map>
 
 using namespace std;
 
 enum OPERATOR {
 	LBRACKET, RBRACKET,
+	ASSIGN,
 	PLUS, MINUS,
 	MULTIPLY
 };
 
 char OPERATOR_STRING[] = {
 	'(', ')',
+	'=',
 	'+', '-',
 	'*'
 };
 
 int PRIORITY [] = {
 	-1 , -1 ,
-	0, 0,
-	1
+	0,
+	1, 1,
+	2
 };
 
 enum LEXEM_TYPE {
-	OPERATORS, NUMBER
+	OPERATORS, NUMBER, VARIABLE
 };
 
 class Lexem {
@@ -33,24 +37,50 @@ public:
 	Lexem();
 	virtual ~Lexem() {}
 	void setType(LEXEM_TYPE);
-	LEXEM_TYPE getLexType() {
-		return lexem_type;
-	}
+	LEXEM_TYPE getLexType();
 	void print(vector <Lexem *>);
 };
+
+LEXEM_TYPE Lexem::getLexType() {
+		return lexem_type;
+}
+
+class Variable: public Lexem {
+	std::string name;
+public:
+	Variable(const string &name);
+	int getValue();
+	void deleteVar();
+	void setValue(int value);
+};
+
+void Variable::setValue(int value) {
+	table[name] = value;
+}
+
+int Variable::getValue() {
+	return table[name];
+}
+
+Variable::Variable(const string &name){
+	Variable::name = name;
+	this->setType(VARIABLE);
+}
 
 void Lexem::setType(LEXEM_TYPE lexem) {
 	lexem_type = lexem;
 }
+void Variable::deleteVar() {
+	table.erase(name);
+}
 
-Lexem::Lexem() {};
+Lexem::Lexem() {}
 
 class Number: public Lexem {
 	int value;
 public:
 	Number(int value);
 	int getValue();
-	//~Number();
 };
 
 Number::Number(int value) {
@@ -110,10 +140,11 @@ Oper::Oper(int ind) {
 }
 
 Oper *checkOperator(string codeline, int *ind) {
-	for(int j = 0; j < sizeof(OPERATOR_STRING); j++)
-		if(codeline[*ind] == OPERATOR_STRING[j]) {
+	for(int j = 0; j < sizeof(OPERATOR_STRING); j++) {
+		if(codeline[*ind] == OPERATOR_STRING[j] && codeline[*ind] != OPERATOR_STRING[ASSIGN]) {
 			return  new Oper((OPERATOR)j);
 		}
+	}
 	return nullptr;
 }
 
@@ -129,21 +160,41 @@ Number *checkNumber(string codeline, int *ind) {
 	return nullptr;
 }
 
+Variable *checkVariable(string codeline, int *ind) {
+	bool found;
+	for(int i = 0; i < table.size(); i++) {
+		if(table.find(i) != table.end()) {
+			std::cout << table[i] << std::endl;
+			return new Variable(table[i]);
+		}
+		else
+			std::cout << "not_found" << std::endl;
+	}
+	return nullptr;
+}
+
 vector<Lexem *> parseLexem (string codeline) {
 	vector<Lexem *> infix;
 	int i;
 	for(i = 0; i < codeline.size(); ) {
+		if(codeline[i] == OPERATOR_STRING[ASSIGN]) {
+				Variable *ptrV = checkVariable(codeline, &i);
+			if(ptrV) {
+				infix.push_back(ptrV);
+				i++;
+			}
+		}
+
 		Oper *ptrO = checkOperator(codeline, &i);
 		if(ptrO) {
 			infix.push_back(ptrO);
-			//continue;
 			i++;
 		}
 		Number *ptrN = checkNumber(codeline, &i);
 		if(ptrN) {
 			infix.push_back(ptrN);
-			//continue;
 		}
+
 	}
 	return infix;
 }
@@ -235,7 +286,7 @@ void Lexem::print(std::vector <Lexem *> vec) {
 	return;
 }
 
-void print1(std::vector <Lexem *> vec) {
+/*void print1(std::vector <Lexem *> vec) {
 	for(int i = 0; i < vec.size(); i++) {	
 		if(vec[i]->getLexType() == NUMBER) {
 			Number *num = dynamic_cast<Number *> (vec[i]);
@@ -249,7 +300,7 @@ void print1(std::vector <Lexem *> vec) {
 	}
 	cout << endl;
 	return;
-}
+}*/
 
 void free(std::vector <Lexem *> vec) {
 	for(int i = 0; i < vec.size(); i++) {
@@ -265,14 +316,15 @@ int main() {
 	vector<Lexem *> infix;
 	vector<Lexem *> postfix;
 	int value;
+	std::map<std::string, int> table;
 	getline(std::cin, codeline);
 	//while(std::getline(std::cin, codeline)) {
 		infix = parseLexem(codeline);
-		print1(infix);
+		//print1(infix);
 		cout << infix.size() << endl;
 		postfix = buildPoliz(infix);
 		cout << "done" << endl;
-		print1(postfix);
+		//print1(postfix);
 		//free(postfix);
 		//free(infix);
 		value = evaluatePoliz(postfix);
