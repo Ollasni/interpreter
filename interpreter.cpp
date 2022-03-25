@@ -4,6 +4,8 @@
 #include <stack>
 #include <map>
 
+std::map<std::string, int> table;
+
 using namespace std;
 
 enum OPERATOR {
@@ -39,23 +41,24 @@ public:
 	void setType(LEXEM_TYPE);
 	LEXEM_TYPE getLexType();
 	void print(vector <Lexem *>);
+	//virtual int getValue() {};
 };
 
 LEXEM_TYPE Lexem::getLexType() {
-		return lexem_type;
+	return lexem_type;
 }
 
-class Variable: public Lexem {
+class Variable: public Lexem{
 	std::string name;
 public:
 	Variable(const string &name);
 	int getValue();
-	void deleteVar();
-	void setValue(int value);
+	int setValue(int value);
+	//void setType(LEXEM_TYPE);
 };
 
-void Variable::setValue(int value) {
-	table[name] = value;
+int Variable::setValue(int value) {
+	return table[name] = value;
 }
 
 int Variable::getValue() {
@@ -69,9 +72,6 @@ Variable::Variable(const string &name){
 
 void Lexem::setType(LEXEM_TYPE lexem) {
 	lexem_type = lexem;
-}
-void Variable::deleteVar() {
-	table.erase(name);
 }
 
 Lexem::Lexem() {}
@@ -99,13 +99,21 @@ public:
 	Oper(int);
 	OPERATOR getType();
 	int getPriority();
-	Number *getValue(Number *left, 
-		     Number *right);
+	Number *getValue(Lexem *left, 
+		     Lexem *right);
 };
 
-Number* Oper::getValue(Number *left, Number *right) {
-	int leftValue = left->getValue();
-	int rightValue = right->getValue();
+Number* Oper::getValue(Lexem *left, Lexem *right) {
+	Number *leftCasted = nullptr, *rightCasted = nullptr;
+	int leftValue = 0, rightValue = 0;
+	if(left->getLexType() == NUMBER) {
+		leftCasted = dynamic_cast<Number *>(left);
+		int leftValue =leftCasted->getValue();
+	}
+	if(right->getLexType() == NUMBER) {
+		rightCasted = dynamic_cast<Number *>(right);
+		int rightValue =rightCasted->getValue();
+	}
 	int answer = 0;
 	switch(getType()) {
 		case PLUS:
@@ -116,6 +124,12 @@ Number* Oper::getValue(Number *left, Number *right) {
 			break;
 		case MULTIPLY:
 			answer = leftValue * rightValue;
+			break;
+		case ASSIGN:
+			Variable *leftPtr = dynamic_cast<Variable *> (left);
+			if(leftPtr == nullptr)
+				exit(1);	
+			answer = leftPtr->setValue(rightValue);
 			break;
 	}
 	return new Number(answer);
@@ -161,16 +175,12 @@ Number *checkNumber(string codeline, int *ind) {
 }
 
 Variable *checkVariable(string codeline, int *ind) {
-	bool found;
-	for(int i = 0; i < table.size(); i++) {
-		if(table.find(i) != table.end()) {
-			std::cout << table[i] << std::endl;
-			return new Variable(table[i]);
+	string name;
+		while(isdigit(codeline[*ind]) || (codeline[*ind] >= '0' && codeline[*ind] <= '9')) {
+
+//		if(table.find(codeline) != table.end()) 
 		}
-		else
-			std::cout << "not_found" << std::endl;
-	}
-	return nullptr;
+		return new Variable(codeline);
 }
 
 vector<Lexem *> parseLexem (string codeline) {
@@ -178,7 +188,7 @@ vector<Lexem *> parseLexem (string codeline) {
 	int i;
 	for(i = 0; i < codeline.size(); ) {
 		if(codeline[i] == OPERATOR_STRING[ASSIGN]) {
-				Variable *ptrV = checkVariable(codeline, &i);
+			Variable *ptrV = checkVariable(codeline, &i);
 			if(ptrV) {
 				infix.push_back(ptrV);
 				i++;
@@ -209,9 +219,9 @@ int evaluatePoliz(std::vector<Lexem *> poliz) {
 			continue;
 		}
 		if(poliz[i]->getLexType() == OPERATORS) {
-			Number *right = dynamic_cast<Number *>(stack.top());
+			Lexem *right = (Lexem *)stack.top();
 			stack.pop();
-			Number *left = dynamic_cast<Number *> (stack.top());
+			Lexem *left = (Lexem *)stack.top();
 			stack.pop();
 			Oper *oper = dynamic_cast<Oper *>(poliz[i]);
 			Number *ans = oper->getValue(left, right);
@@ -286,7 +296,7 @@ void Lexem::print(std::vector <Lexem *> vec) {
 	return;
 }
 
-/*void print1(std::vector <Lexem *> vec) {
+void print1(std::vector <Lexem *> vec) {
 	for(int i = 0; i < vec.size(); i++) {	
 		if(vec[i]->getLexType() == NUMBER) {
 			Number *num = dynamic_cast<Number *> (vec[i]);
@@ -300,7 +310,7 @@ void Lexem::print(std::vector <Lexem *> vec) {
 	}
 	cout << endl;
 	return;
-}*/
+}
 
 void free(std::vector <Lexem *> vec) {
 	for(int i = 0; i < vec.size(); i++) {
@@ -320,11 +330,11 @@ int main() {
 	getline(std::cin, codeline);
 	//while(std::getline(std::cin, codeline)) {
 		infix = parseLexem(codeline);
-		//print1(infix);
+		print1(infix);
 		cout << infix.size() << endl;
 		postfix = buildPoliz(infix);
 		cout << "done" << endl;
-		//print1(postfix);
+		print1(postfix);
 		//free(postfix);
 		//free(infix);
 		value = evaluatePoliz(postfix);
