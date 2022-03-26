@@ -41,7 +41,6 @@ public:
 	void setType(LEXEM_TYPE);
 	LEXEM_TYPE getLexType();
 	void print(vector <Lexem *>);
-	//virtual int getValue() {};
 };
 
 LEXEM_TYPE Lexem::getLexType() {
@@ -54,8 +53,13 @@ public:
 	Variable(const string &name);
 	int getValue();
 	int setValue(int value);
-	//void setType(LEXEM_TYPE);
+	string getName();
 };
+
+
+string Variable::getName() {
+	return name;
+}
 
 int Variable::setValue(int value) {
 	return table[name] = value;
@@ -108,11 +112,11 @@ Number* Oper::getValue(Lexem *left, Lexem *right) {
 	int leftValue = 0, rightValue = 0;
 	if(left->getLexType() == NUMBER) {
 		leftCasted = dynamic_cast<Number *>(left);
-		int leftValue =leftCasted->getValue();
+		leftValue =leftCasted->getValue();
 	}
 	if(right->getLexType() == NUMBER) {
 		rightCasted = dynamic_cast<Number *>(right);
-		int rightValue =rightCasted->getValue();
+		rightValue =rightCasted->getValue();
 	}
 	int answer = 0;
 	switch(getType()) {
@@ -126,6 +130,7 @@ Number* Oper::getValue(Lexem *left, Lexem *right) {
 			answer = leftValue * rightValue;
 			break;
 		case ASSIGN:
+			cout << "yes" << endl;
 			Variable *leftPtr = dynamic_cast<Variable *> (left);
 			if(leftPtr == nullptr)
 				exit(1);	
@@ -155,8 +160,8 @@ Oper::Oper(int ind) {
 
 Oper *checkOperator(string codeline, int *ind) {
 	for(int j = 0; j < sizeof(OPERATOR_STRING); j++) {
-		if(codeline[*ind] == OPERATOR_STRING[j] && codeline[*ind] != OPERATOR_STRING[ASSIGN]) {
-			return  new Oper((OPERATOR)j);
+		if(codeline[*ind] == OPERATOR_STRING[j] /*&& codeline[*ind] != OPERATOR_STRING[ASSIGN]*/) {
+			return new Oper((OPERATOR)j);
 		}
 	}
 	return nullptr;
@@ -169,36 +174,41 @@ Number *checkNumber(string codeline, int *ind) {
 				number = 10 * number + (codeline[*ind] - '0');
 				(*ind)++;
 			}
-		return  new Number(number);
+		return new Number(number);
 	}
 	return nullptr;
 }
 
 Variable *checkVariable(string codeline, int *ind) {
 	string name;
-		while(isdigit(codeline[*ind]) || (codeline[*ind] >= '0' && codeline[*ind] <= '9')) {
-
-//		if(table.find(codeline) != table.end()) 
+	if(codeline[*ind] >= 'a' && codeline[*ind] <= 'z') {
+		while(isdigit(codeline[*ind]) || (codeline[*ind] >= 'a' && codeline[*ind] <= 'z')) {
+			name.push_back(codeline[*ind]);
+			(*ind)++;
+		//	cout << "no" << endl;
 		}
-		return new Variable(codeline);
+		//cout << "name " << name << endl;
+		return new Variable(name);
+//		if(table.find(codeline) != table.end()) 
+	}
+			
+		return nullptr;
 }
 
 vector<Lexem *> parseLexem (string codeline) {
 	vector<Lexem *> infix;
 	int i;
-	for(i = 0; i < codeline.size(); ) {
-		if(codeline[i] == OPERATOR_STRING[ASSIGN]) {
-			Variable *ptrV = checkVariable(codeline, &i);
-			if(ptrV) {
-				infix.push_back(ptrV);
-				i++;
-			}
+	for(i = 0; i < codeline.size(); i++) {
+		Variable *ptrV = checkVariable(codeline, &i);
+		if(ptrV) {
+			infix.push_back(ptrV);
+			cout << "ptrv"<< ptrV << endl;
 		}
 
 		Oper *ptrO = checkOperator(codeline, &i);
 		if(ptrO) {
 			infix.push_back(ptrO);
-			i++;
+			//i++;
 		}
 		Number *ptrN = checkNumber(codeline, &i);
 		if(ptrN) {
@@ -303,9 +313,13 @@ void print1(std::vector <Lexem *> vec) {
 			cout << (num->getValue()) << " ";
 		}
 		if(vec[i]->getLexType() == OPERATORS) {
-         		Oper *oper = dynamic_cast<Oper *>(vec[i]);
+         	Oper *oper = dynamic_cast<Oper *>(vec[i]);
 			OPERATOR val = oper->getType();
 			cout << OPERATOR_STRING[val] << " ";
+		}
+		if(vec[i]->getLexType() == VARIABLE) {
+			Variable *var = dynamic_cast<Variable *>(vec[i]);
+			cout << var ->getName() << " ";
 		}
 	}
 	cout << endl;
@@ -326,19 +340,16 @@ int main() {
 	vector<Lexem *> infix;
 	vector<Lexem *> postfix;
 	int value;
-	std::map<std::string, int> table;
-	getline(std::cin, codeline);
-	//while(std::getline(std::cin, codeline)) {
+	//getline(std::cin, codeline);
+	while(std::getline(std::cin, codeline)) {
 		infix = parseLexem(codeline);
 		print1(infix);
-		cout << infix.size() << endl;
+		//cout << infix.size() << endl;
 		postfix = buildPoliz(infix);
 		cout << "done" << endl;
 		print1(postfix);
-		//free(postfix);
-		//free(infix);
 		value = evaluatePoliz(postfix);
 		std::cout << value << std::endl;
-	//}
+	}
 	return 0;
 }
