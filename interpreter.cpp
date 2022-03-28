@@ -4,6 +4,7 @@
 #include <stack>
 #include <map>
 
+
 std::map<std::string, int> table;
 
 using namespace std;
@@ -47,6 +48,14 @@ LEXEM_TYPE Lexem::getLexType() {
 	return lexem_type;
 }
 
+void Lexem::setType(LEXEM_TYPE lexem) {
+	lexem_type = lexem;
+}
+
+Lexem::Lexem() {}
+
+
+
 class Variable: public Lexem{
 	std::string name;
 public:
@@ -62,7 +71,9 @@ string Variable::getName() {
 }
 
 int Variable::setValue(int value) {
-	return table[name] = value;
+	table[name] = value;
+	cout << "map: " << table[name] << endl;
+	return table[name];
 }
 
 int Variable::getValue() {
@@ -74,11 +85,7 @@ Variable::Variable(const string &name){
 	this->setType(VARIABLE);
 }
 
-void Lexem::setType(LEXEM_TYPE lexem) {
-	lexem_type = lexem;
-}
 
-Lexem::Lexem() {}
 
 class Number: public Lexem {
 	int value;
@@ -96,6 +103,8 @@ int Number::getValue() {
 	return value;
 }
 
+
+
 class Oper: public Lexem {
 	OPERATOR opertype;
 public:
@@ -103,42 +112,9 @@ public:
 	Oper(int);
 	OPERATOR getType();
 	int getPriority();
-	Number *getValue(Lexem *left, 
+	Number *getValue(Lexem *left,
 		     Lexem *right);
 };
-
-Number* Oper::getValue(Lexem *left, Lexem *right) {
-	Number *leftCasted = nullptr, *rightCasted = nullptr;
-	int leftValue = 0, rightValue = 0;
-	if(left->getLexType() == NUMBER) {
-		leftCasted = dynamic_cast<Number *>(left);
-		leftValue =leftCasted->getValue();
-	}
-	if(right->getLexType() == NUMBER) {
-		rightCasted = dynamic_cast<Number *>(right);
-		rightValue =rightCasted->getValue();
-	}
-	int answer = 0;
-	switch(getType()) {
-		case PLUS:
-			answer = leftValue + rightValue;
-			break;
-		case MINUS:
-			answer = leftValue - rightValue;
-			break;
-		case MULTIPLY:
-			answer = leftValue * rightValue;
-			break;
-		case ASSIGN:
-			cout << "yes" << endl;
-			Variable *leftPtr = dynamic_cast<Variable *> (left);
-			if(leftPtr == nullptr)
-				exit(1);	
-			answer = leftPtr->setValue(rightValue);
-			break;
-	}
-	return new Number(answer);
-}
 
 OPERATOR Oper::getType() {
 	return opertype;
@@ -158,9 +134,79 @@ Oper::Oper(int ind) {
 	this->setType(OPERATORS);
 }
 
+Number* Oper::getValue(Lexem *left, Lexem *right) {
+	Number *leftCasted = nullptr, *rightCasted = nullptr;
+	int leftValue = 0, rightValue = 0;
+	Variable *leftPtr = nullptr, *rightPtr = nullptr;
+	if(left->getLexType() == NUMBER) {
+		leftCasted = dynamic_cast<Number *>(left);
+		leftValue = leftCasted->getValue();
+	}
+	if(right->getLexType() == NUMBER) {
+		rightCasted = dynamic_cast<Number *>(right);
+		rightValue = rightCasted->getValue();
+	}
+	if(left->getLexType() == VARIABLE) {
+		leftPtr = dynamic_cast<Variable *> (left);
+		leftValue = table[leftPtr->getName()];
+	}
+	if(right->getLexType() == VARIABLE) {
+        rightPtr = dynamic_cast<Variable *> (right);
+		rightValue = table[rightPtr->getName()];
+        }
+
+	int answer = 0;
+	switch(getType()) {
+		case PLUS:
+			answer = leftValue + rightValue;
+			break;
+		case MINUS:
+			answer = leftValue - rightValue;
+			break;
+		case MULTIPLY:
+			answer = leftValue * rightValue;
+			break;
+		case ASSIGN:
+			cout << "yes" << endl;
+			if(leftPtr == nullptr) {
+				exit(1);
+			}
+				answer = leftPtr->setValue(rightValue);
+			break;
+	}
+	return new Number(answer);
+}
+
+int evaluatePoliz(std::vector<Lexem *> poliz) {
+	Number* answer(0);
+	stack<Lexem *> stack;
+	for(int i = 0; i < poliz.size(); i++) {
+			if(poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VARIABLE) {
+				stack.push(poliz[i]);
+				continue;
+		}
+		if(poliz[i]->getLexType() == OPERATORS) {
+			Lexem *right = (Lexem *)stack.top();
+			stack.pop();
+			Lexem *left = (Lexem *)stack.top();
+			stack.pop();
+			Oper *oper = dynamic_cast<Oper *>(poliz[i]);
+			Number *ans = oper->getValue(left, right);
+			stack.push(ans);
+			continue;
+		}
+	}
+	answer = dynamic_cast<Number* >(stack.top());
+	while(!stack.empty()) {
+		stack.pop();
+	}
+	return (answer->getValue());
+}
+
+
 Oper *checkOperator(string codeline, int *ind) {
 	for(int j = 0; j < sizeof(OPERATOR_STRING); j++) {
-		if(codeline[*ind] == OPERATOR_STRING[j] /*&& codeline[*ind] != OPERATOR_STRING[ASSIGN]*/) {
+		if(codeline[*ind] == OPERATOR_STRING[j]) {
 			return new Oper((OPERATOR)j);
 		}
 	}
@@ -185,13 +231,10 @@ Variable *checkVariable(string codeline, int *ind) {
 		while(isdigit(codeline[*ind]) || (codeline[*ind] >= 'a' && codeline[*ind] <= 'z')) {
 			name.push_back(codeline[*ind]);
 			(*ind)++;
-		//	cout << "no" << endl;
 		}
-		//cout << "name " << name << endl;
 		return new Variable(name);
-//		if(table.find(codeline) != table.end()) 
 	}
-			
+	else 
 		return nullptr;
 }
 
@@ -202,13 +245,11 @@ vector<Lexem *> parseLexem (string codeline) {
 		Variable *ptrV = checkVariable(codeline, &i);
 		if(ptrV) {
 			infix.push_back(ptrV);
-			cout << "ptrv"<< ptrV << endl;
 		}
 
 		Oper *ptrO = checkOperator(codeline, &i);
 		if(ptrO) {
 			infix.push_back(ptrO);
-			//i++;
 		}
 		Number *ptrN = checkNumber(codeline, &i);
 		if(ptrN) {
@@ -220,37 +261,13 @@ vector<Lexem *> parseLexem (string codeline) {
 }
 
 
-int evaluatePoliz(std::vector<Lexem *> poliz) {
-	Number* answer(0);
-	stack<Lexem *> stack;
-	for(int i = 0; i < poliz.size(); i++) {
-		if(poliz[i]->getLexType() == NUMBER) {
-			stack.push(poliz[i]);
-			continue;
-		}
-		if(poliz[i]->getLexType() == OPERATORS) {
-			Lexem *right = (Lexem *)stack.top();
-			stack.pop();
-			Lexem *left = (Lexem *)stack.top();
-			stack.pop();
-			Oper *oper = dynamic_cast<Oper *>(poliz[i]);
-			Number *ans = oper->getValue(left, right);
-			stack.push(ans);
-			continue;
-		}
-	}
-	answer = dynamic_cast<Number* >(stack.top());
-	while(!stack.empty()) {
-		stack.pop();
-	}
-	return (answer->getValue());
-}
+
 
 vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 	vector<Lexem *> postfix;
 	stack <Lexem *> stack;
 	for(int i = 0; i < infix.size(); i++) {
-		if(infix[i]->getLexType() == NUMBER) {
+		if(infix[i]->getLexType() == NUMBER ||infix[i]->getLexType() == VARIABLE) {
 			postfix.push_back(infix[i]);
 			continue;
 		}
@@ -291,7 +308,7 @@ vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 
 
 void Lexem::print(std::vector <Lexem *> vec) {
-	for(int i = 0; i < vec.size(); i++) {	
+	for(int i = 0; i < vec.size(); i++) {
 		if(vec[i]->getLexType() == NUMBER) {
 			Number *num = dynamic_cast<Number *> (vec[i]);
 			cout << (num->getValue()) << " ";
@@ -307,7 +324,7 @@ void Lexem::print(std::vector <Lexem *> vec) {
 }
 
 void print1(std::vector <Lexem *> vec) {
-	for(int i = 0; i < vec.size(); i++) {	
+	for(int i = 0; i < vec.size(); i++) {
 		if(vec[i]->getLexType() == NUMBER) {
 			Number *num = dynamic_cast<Number *> (vec[i]);
 			cout << (num->getValue()) << " ";
@@ -334,13 +351,15 @@ void free(std::vector <Lexem *> vec) {
 	return;
 }
 
+
+
 int main() {
 
 	string codeline;
 	vector<Lexem *> infix;
 	vector<Lexem *> postfix;
 	int value;
-	//getline(std::cin, codeline);
+//	getline(std::cin, codeline);
 	while(std::getline(std::cin, codeline)) {
 		infix = parseLexem(codeline);
 		print1(infix);
@@ -349,6 +368,7 @@ int main() {
 		cout << "done" << endl;
 		print1(postfix);
 		value = evaluatePoliz(postfix);
+		infix.clear();
 		std::cout << value << std::endl;
 	}
 	return 0;
