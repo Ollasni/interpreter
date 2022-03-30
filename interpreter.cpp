@@ -12,22 +12,49 @@ using namespace std;
 enum OPERATOR {
 	LBRACKET, RBRACKET,
 	ASSIGN,
+	OR,
+	AND,
+	BITTOR,
+	XOR,
+	BITAND,
+	EQ, NEQ,
+	LEQ, LT,
+	GEQ, GT,
+	SHL, SHR,
 	PLUS, MINUS,
-	MULTIPLY
+	MULTIPLY, DIV, MOD
 };
 
-char OPERATOR_STRING[] = {
-	'(', ')',
-	'=',
-	'+', '-',
-	'*'
+string OPERTEXT[] = {
+	"(", ")",
+	":=",
+	"or",
+	"and",
+	"|",
+	"^",
+	"&",
+	"==", "!=",
+	"<=", "<",
+	">=", ">",
+	"<<", ">>",
+	"+", "-", 
+	"*", "/", "%"
 };
 
 int PRIORITY [] = {
 	-1 , -1 ,
 	0,
 	1, 1,
-	2
+	2,
+	3,
+	4,
+	5,
+	6, 6,
+	7, 7, 
+	7, 7,
+	8, 8, 
+	9, 9,
+	10, 10, 10
 };
 
 enum LEXEM_TYPE {
@@ -55,6 +82,18 @@ void Lexem::setType(LEXEM_TYPE lexem) {
 Lexem::Lexem() {}
 
 
+class PostfixParser {
+	int position;
+	vector<Lexem *> poliz;
+	bool get_command();
+	bool get_expression();
+	bool get_number();
+	bool get_binary_operator();
+	bool get_assign_operator();
+	bool get_variable();
+public:
+};
+
 
 class Variable: public Lexem{
 	std::string name;
@@ -71,9 +110,7 @@ string Variable::getName() {
 }
 
 int Variable::setValue(int value) {
-	table[name] = value;
-	cout << "map: " << table[name] << endl;
-	return table[name];
+	return table[name] = value;
 }
 
 int Variable::getValue() {
@@ -157,6 +194,47 @@ Number* Oper::getValue(Lexem *left, Lexem *right) {
 
 	int answer = 0;
 	switch(getType()) {
+		case OR:
+			answer = leftValue or rightValue;
+			break;
+		case AND:
+			answer = leftValue and rightValue;
+			break;
+		case BITTOR:
+			answer = leftValue | rightValue;
+			break;
+		case XOR:
+			answer = leftValue ^ rightValue;
+			break;
+		case BITAND:
+			answer = leftValue & rightValue;
+			break;
+		case EQ:
+			answer = leftValue == rightValue;
+			break;
+		case NEQ:
+			answer = leftValue != rightValue;
+			break;
+		case LEQ:
+			answer = leftValue <= rightValue;
+			break;
+		case LT:
+			answer = leftValue < rightValue;
+			break;
+		case GEQ:
+			answer = leftValue >= rightValue;
+			break;
+		case GT:
+			answer = leftValue > rightValue;
+		case SHL:
+			answer = leftValue << rightValue;
+			break;
+		case SHR:
+			answer = leftValue >> rightValue;
+			break;
+		case DIV:
+			answer = leftValue / rightValue;
+			break;
 		case PLUS:
 			answer = leftValue + rightValue;
 			break;
@@ -167,7 +245,6 @@ Number* Oper::getValue(Lexem *left, Lexem *right) {
 			answer = leftValue * rightValue;
 			break;
 		case ASSIGN:
-			cout << "yes" << endl;
 			if(leftPtr == nullptr) {
 				exit(1);
 			}
@@ -205,12 +282,20 @@ int evaluatePoliz(std::vector<Lexem *> poliz) {
 
 
 Oper *checkOperator(string codeline, int *ind) {
-	for(int j = 0; j < sizeof(OPERATOR_STRING); j++) {
-		if(codeline[*ind] == OPERATOR_STRING[j]) {
-			return new Oper((OPERATOR)j);
+	cout << "ind " << *ind << endl;
+	int n = sizeof(OPERTEXT) / sizeof(string);
+	int flag = -1;
+	for(int j = 0; j < n; j++) {
+		string subcodeline = codeline.substr(*ind, OPERTEXT[j].size());
+		if(OPERTEXT[j] == subcodeline) {
+			flag = j;
 		}
 	}
-	return nullptr;
+	if(flag != -1) {
+		*ind += OPERTEXT[flag].size();
+		return new Oper((OPERATOR)flag);
+	}
+	else return nullptr;
 }
 
 Number *checkNumber(string codeline, int *ind) {
@@ -316,7 +401,7 @@ void Lexem::print(std::vector <Lexem *> vec) {
 		if(vec[i]->getLexType() == OPERATORS) {
 	         	Oper *oper = dynamic_cast<Oper *>(vec[i]);
 			OPERATOR val = oper->getType();
-			cout << OPERATOR_STRING[val] << " ";
+			cout << OPERTEXT[val] << " ";
 		}
 	}
 	cout << endl;
@@ -332,7 +417,7 @@ void print1(std::vector <Lexem *> vec) {
 		if(vec[i]->getLexType() == OPERATORS) {
          	Oper *oper = dynamic_cast<Oper *>(vec[i]);
 			OPERATOR val = oper->getType();
-			cout << OPERATOR_STRING[val] << " ";
+			cout << OPERTEXT[val] << " ";
 		}
 		if(vec[i]->getLexType() == VARIABLE) {
 			Variable *var = dynamic_cast<Variable *>(vec[i]);
@@ -359,8 +444,9 @@ int main() {
 	vector<Lexem *> infix;
 	vector<Lexem *> postfix;
 	int value;
-//	getline(std::cin, codeline);
-	while(std::getline(std::cin, codeline)) {
+	
+	getline(std::cin, codeline);
+	//while(std::getline(std::cin, codeline)) {
 		infix = parseLexem(codeline);
 		print1(infix);
 		//cout << infix.size() << endl;
@@ -370,6 +456,6 @@ int main() {
 		value = evaluatePoliz(postfix);
 		infix.clear();
 		std::cout << value << std::endl;
-	}
+	//}
 	return 0;
 }
