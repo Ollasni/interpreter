@@ -88,9 +88,10 @@ class Variable: public Lexem{
 public:
 	Variable(const string &name);
 	int getValue();
-	int setValue(int value);
+	int setValueTable(int value);
+	int setValueLabels(int value);
 	string getName();
-	bool inLabelTable();
+
 };
 
 
@@ -98,10 +99,13 @@ string Variable::getName() {
 	return name;
 }
 
-int Variable::setValue(int value) {
+int Variable::setValueTable(int value) {
 	return table[name] = value;
 }
 
+int Variable::setValueLabels(int value) {
+	return labels[name] = value;
+}
 int Variable::getValue() {
 	return table[name];
 }
@@ -236,7 +240,7 @@ Number* Oper::getValue(Lexem *left, Lexem *right) {
 			if(leftPtr == nullptr) {
 				exit(1);
 			}
-				answer = leftPtr->setValue(rightValue);
+				answer = leftPtr->setValueTable(rightValue);
 			break;
 	}
 	return new Number(answer);
@@ -267,7 +271,7 @@ int Goto::getRow() {
 }
 
 
-int evaluatePoliz(std::vector<Lexem *> poliz) {
+int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 	Number* answer(0);
 	stack<Lexem *> stack;
 	for(int i = 0; i < poliz.size(); i++) {
@@ -276,6 +280,8 @@ int evaluatePoliz(std::vector<Lexem *> poliz) {
 				continue;
 		}
 		if(poliz[i]->getLexType() == OPERATORS) {
+			if(((Oper *)poliz[i])->getType() == GOTO)
+				return labels[((Variable *)poliz[i - 1])->getName()]; 
 			Lexem *right = (Lexem *)stack.top();
 			stack.pop();
 			Lexem *left = (Lexem *)stack.top();
@@ -290,7 +296,8 @@ int evaluatePoliz(std::vector<Lexem *> poliz) {
 	while(!stack.empty()) {
 		stack.pop();
 	}
-	return (answer->getValue());
+	cout << "answer " << answer->getValue() << endl;
+	return row + 1;
 }
 
 
@@ -362,21 +369,6 @@ vector<Lexem *> parseLexem (string codeline) {
 	return infix;
 }
 
-void joinGotoAndLabel(Variable *lexemvar, std::stack<Oper *> &stack) {
-	if(stack.top()->getType() == GOTO) {
-		Goto *lexemgoto = (Goto *)stack.top();
-		lexemgoto->setRow(labels[lexemvar->getName()]);
-	}
-}
-
-bool Variable::inLabelTable() {
-	if(labels.find(name) != labels.end()) {
-		cout << "found " << endl;
-		return true;
-	}
-	return false;
-}
-
 
 
 vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
@@ -386,11 +378,6 @@ vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 		if(infix[i] == nullptr)
 			continue;
 		if(infix[i]->getLexType() == VARIABLE) {
-			Variable *lexemvar = (Variable *)infix[i];
-			if(lexemvar->inLabelTable() && !stack.empty()) {
-				joinGotoAndLabel(lexemvar, stack);
-			}
-			else
 				postfix.push_back(infix[i]);
 		}
 		if(infix[i]->getLexType() == NUMBER) {
@@ -434,6 +421,7 @@ vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 
 void initLabels(vector<Lexem *> &infix, int row) {
 	for (int i = 1; i < infix.size(); i++) {
+
 		if ((infix[i - 1] != nullptr) && (infix[i] != nullptr) &&
 			(infix[i - 1]->getLexType() == VARIABLE) && (infix[i]->getLexType() == OPERATORS)) {
 			Variable *lexemvar = (Variable *)infix[i - 1];
@@ -447,6 +435,14 @@ void initLabels(vector<Lexem *> &infix, int row) {
 				i++;
 			}
 		 }
+		/*if ((infix[i - 1] != nullptr) && (infix[i] != nullptr) &&
+                        (infix[i - 1]->getLexType() == OPERATORRS) && (infix[i]->getLexType() == VARIABLE)) {
+                        Variable *lexemvar = (Variable *)infix[i];
+                        Oper *lexemop = (Oper *)infix[i - 1];
+                        if (lexemop->getType() == GOTO) {
+				table.erase(
+			}*/
+
 	}
 }
 
@@ -455,8 +451,7 @@ void initLabels(vector<Lexem *> &infix, int row) {
 void print_universal(std::vector < Lexem *> vect) {
 	for(int i = 0; i < vect.size(); i++) {
 		if(vect[i] == nullptr) {
-			//cout << "[00]";
-			continue;
+				continue;
 		}
 		if(vect[i]->getLexType() == NUMBER) {
 			Number *num = dynamic_cast<Number *> (vect[i]);
@@ -469,7 +464,7 @@ void print_universal(std::vector < Lexem *> vect) {
 		}
 		if(vect[i]->getLexType() == VARIABLE) {
 			Variable *var = dynamic_cast<Variable *>(vect[i]);
-			cout <<  "[" << var ->getName() << "=" << var->getValue() << "]";
+			cout <<  "[" << var ->getName() /*<< "=" << var->getValue()*/ << "]";
 		}
 		
 	}
@@ -541,6 +536,12 @@ int main() {
 	for(int row = 0; row < infixLines.size(); ++row) {
 		initLabels(infixLines[row], row);
 	}
+
+	 for(int i = 0; i < infixLines.size(); i++) {
+                cout << i << ": ";
+                print_universal(infixLines[i]);
+        }
+
 	for (auto x : labels) {
 		cout << x.first << " " << x.second << "\n";
 	}
@@ -552,10 +553,14 @@ int main() {
 		print_universal(postfixLines[i]);
 	}
 	int row = 0;
-	cout << "t" << endl;
-	//while(0 <= row && row < postfixLines.size())
-	//	row = evaluatePoliz(postfixLines[row], row);
-	
+	while(0 <= row && row < postfixLines.size()) {
+		row = evaluatePoliz(postfixLines[row], row);
+		cout << "row " << row << endl;
+	}
+	 for(int i = 0; i < infixLines.size(); i++) {
+                free(infixLines[i]);
+        }
+
 	//getline(std::cin, codeline);
 	/*while(std::getline(std::cin, codeline)) {
 		infix = parseLexem(codeline);
