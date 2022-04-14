@@ -306,8 +306,8 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 				continue;
 		}
 		if(poliz[i]->getLexType() == OPERATORS) {
+			Goto *lexemGoto = (Goto *)poliz[i];
 			if(((Oper *)poliz[i])->getType() == IF || ((Oper *)poliz[i])->getType() == WHILE) {
-				Goto *lexemGoto = (Goto *)poliz[i];
 				Lexem *rvalue = stack.top();
 				stack.pop();
 				cout << "stop in evPol" << endl;
@@ -318,6 +318,12 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 					return lexemGoto->getRow();
 				}
 				cout << "stop in evPol end" << endl;
+			}
+			if(((Oper *)poliz[i])->getType() == ELSE) {
+				return lexemGoto->getRow(); 
+			}
+			if(((Oper *)poliz[i])->getType() == ENDIF || ((Oper*)poliz[i])->getType() == ENDWHILE) {
+				return (lexemGoto->getRow() + 1); 
 			}
 			if(((Oper *)poliz[i])->getType() == GOTO) {
 				Variable *var = dynamic_cast<Variable *>(poliz[i]);
