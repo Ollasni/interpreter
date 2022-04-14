@@ -297,7 +297,6 @@ int Goto::getRow() {
 
 int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 	stack<Lexem *> stack;
-	//cout << "st r " << row << endl;
 	for(int i = 0; i < poliz.size(); i++) {
 			if(poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VARIABLE) {
 				stack.push(poliz[i]);
@@ -309,28 +308,21 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 				Lexem *rvalue = stack.top();
 				stack.pop();
 				int ress = ((Number *)rvalue)->getValue();
-				cout << "res " << ress << endl;
+				cout << "while cond " << ress << " ";
 				if(!ress) {
 					return (lexemGoto->getRow());
 				}
 				continue; 
 			}
 			if(((Oper *)poliz[i])->getType() == ELSE) {
-				//	cout << "prerowelse " << lexemGoto->getRow() << endl;
 				return lexemGoto->getRow(); 
 			}
 			if(((Oper *)poliz[i])->getType() == ENDIF || ((Oper*)poliz[i])->getType() == ENDWHILE) {
-					cout << "prerow end " << (lexemGoto->getRow() + 1) << endl;
 				return (lexemGoto->getRow());
-				continue; 
 			}
 			if(((Oper *)poliz[i])->getType() == GOTO) {
-				//Variable *var = dynamic_cast<Variable *>(poliz[i]);
-				//cout << "prerow  goto " << var->incLabel() << endl;
-				//return var->incLabel(); 
 				return labels[((Variable *)poliz[i - 1])->getName()];
 			}
-			//cout << "we are here" << endl;
 			Lexem *right = (Lexem *)stack.top();
 			stack.pop();
 			Lexem *left = (Lexem *)stack.top();
@@ -338,19 +330,14 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 			Oper *oper = dynamic_cast<Oper *>(poliz[i]);
 			Number *ans = oper->getValue(left, right);
 			stack.push(ans);
-			cout << "answer: " << ans->getValue() << endl;
+			cout << "answer: " << ans->getValue() << " ";
 			continue;
 		}
 	}
-	//cout << "we left" << endl;
-	//answer = dynamic_cast<Number* >(stack.top());
 	while(!stack.empty()) {
 		stack.pop();
 	}
-//	cout << "answer " << answer->getValue() << endl;
-//	delete answer;
 	row ++;
-	//cout << "prerow return " << row << endl;
 	return row;
 }
 
@@ -564,7 +551,7 @@ void print_universal(std::vector < Lexem *> vect) {
 		}
 		if(vect[i]->getLexType() == VARIABLE) {
 			Variable *var = dynamic_cast<Variable *>(vect[i]);
-			cout <<  "[" << var ->getName() /*<< "=" << var->getValue()*/ << "]";
+			cout <<  "[" << var ->getName() << "]";
 		}
 	}
 	cout << endl;
@@ -601,12 +588,6 @@ int main() {
 	initLabels(infixLines);
 	initJumps(infixLines);
 
-	/* for(int i = 0; i < infixLines.size(); i++) {
-                cout << i << ": ";
-                print_universal(infixLines[i]);
-        }
-                cout << endl;
-*/
 	for (auto x : labels) {
 		cout << "label " <<  x.first << " " << x.second << "\n";
 	}
@@ -629,11 +610,11 @@ int main() {
 	int row = 0;
 	while(0 <= row && row < postfixLines.size() /*&& flag < 5*/) {
 		row = evaluatePoliz(postfixLines[row], row);
-		cout << "row " << row << endl;
+	//	cout << "row " << row << endl;
 		cout << endl;
 	}
 	for (auto x : table) {
-		cout << "table" << x.first << " " << x.second << "\n";
+		cout << "table " << x.first << " " << x.second << "\n";
 	}
 	 for(int i = 0; i < infixLines.size(); i++) {
                 free(infixLines[i]);
