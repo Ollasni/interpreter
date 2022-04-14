@@ -126,6 +126,7 @@ int Variable::getValue() {
 
 Variable::Variable(const string &name){
 	Variable::name = name;
+	table[name] = 0;
 	this->setType(VARIABLE);
 }
 
@@ -253,9 +254,11 @@ Number* Oper::getValue(Lexem *left, Lexem *right) {
 			break;
 		case ASSIGN:
 			if(leftPtr == nullptr) {
+				cout << "err ASSIGN" << endl;
 				exit(1);
 			}
 				answer = leftPtr->setValueTable(rightValue);
+				cout << "setTable" << answer  << endl;
 			break;
 	}
 	return new Number(answer);
@@ -293,15 +296,9 @@ int Goto::getRow() {
 
 
 int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
-//	Number* answer(0);
 	stack<Lexem *> stack;
-	cout << "st r " << row << endl;
+	//cout << "st r " << row << endl;
 	for(int i = 0; i < poliz.size(); i++) {
-		//cout << "iter: " << i << endl;
-			/*if(!stack.empty()) {
-				cout << "stack: ";
-				cout << ((Number*)stack.top())->getValue() << endl;
-			}*/
 			if(poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VARIABLE) {
 				stack.push(poliz[i]);
 				continue;
@@ -311,30 +308,27 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 			if(((Oper *)poliz[i])->getType() == IF || ((Oper *)poliz[i])->getType() == WHILE) {
 				Lexem *rvalue = stack.top();
 				stack.pop();
-				cout << "stop in evPol" << endl;
 				int ress = ((Number *)rvalue)->getValue();
 				cout << "res " << ress << endl;
 				if(!ress) {
-					cout << "stop in evPol if" << endl;
-					cout << "prerow cycle " << lexemGoto->getRow() << endl;
 					return (lexemGoto->getRow());
 				}
-				cout << "stop in evPol end" << endl;
 				continue; 
 			}
 			if(((Oper *)poliz[i])->getType() == ELSE) {
-					cout << "prerowelse " << lexemGoto->getRow() << endl;
+				//	cout << "prerowelse " << lexemGoto->getRow() << endl;
 				return lexemGoto->getRow(); 
 			}
 			if(((Oper *)poliz[i])->getType() == ENDIF || ((Oper*)poliz[i])->getType() == ENDWHILE) {
-				//	cout << "prerow end " << (lexemGoto->getRow() + 1) << endl;
-				//return (lexemGoto->getRow() + 1);
+					cout << "prerow end " << (lexemGoto->getRow() + 1) << endl;
+				return (lexemGoto->getRow());
 				continue; 
 			}
 			if(((Oper *)poliz[i])->getType() == GOTO) {
-				Variable *var = dynamic_cast<Variable *>(poliz[i]);
-				cout << "prerow  goto " << var->incLabel() << endl;
-				return var->incLabel(); 
+				//Variable *var = dynamic_cast<Variable *>(poliz[i]);
+				//cout << "prerow  goto " << var->incLabel() << endl;
+				//return var->incLabel(); 
+				return labels[((Variable *)poliz[i - 1])->getName()];
 			}
 			//cout << "we are here" << endl;
 			Lexem *right = (Lexem *)stack.top();
@@ -348,7 +342,7 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 			continue;
 		}
 	}
-	cout << "we left" << endl;
+	//cout << "we left" << endl;
 	//answer = dynamic_cast<Number* >(stack.top());
 	while(!stack.empty()) {
 		stack.pop();
@@ -356,7 +350,7 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 //	cout << "answer " << answer->getValue() << endl;
 //	delete answer;
 	row ++;
-	cout << "prerow return " << row << endl;
+	//cout << "prerow return " << row << endl;
 	return row;
 }
 
@@ -454,7 +448,7 @@ vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 			Oper *infixResO = dynamic_cast<Oper *>(infix[i]);
 			int resO = infixResO ->getType();
 			if(resO == OPERATOR(THEN))
-					continue;
+				continue;
 			if(resO == OPERATOR(LBRACKET)) {
 				stack.push(infixResO);
 				continue;
@@ -527,6 +521,7 @@ void initJumps(std::vector < vector<Lexem *> > &infix) {
 						stackIfElse.push(lexemGoto);
 						break;
 					case ENDIF:
+						lexemGoto->setRow(row + 1);
 						stackIfElse.top()->setRow(row + 1);
 						stackIfElse.pop();
 						break;
@@ -606,14 +601,21 @@ int main() {
 	initLabels(infixLines);
 	initJumps(infixLines);
 
-	 for(int i = 0; i < infixLines.size(); i++) {
+	/* for(int i = 0; i < infixLines.size(); i++) {
                 cout << i << ": ";
                 print_universal(infixLines[i]);
         }
                 cout << endl;
-
+*/
 	for (auto x : labels) {
 		cout << "label " <<  x.first << " " << x.second << "\n";
+	}
+	if(labels.empty()) {
+		cout << "labels empty" << endl;
+	}
+	
+	if(table.empty()) {
+		cout << "table empty" << endl;
 	}
 	
 	for(const auto &infix: infixLines)
@@ -628,7 +630,10 @@ int main() {
 	while(0 <= row && row < postfixLines.size() /*&& flag < 5*/) {
 		row = evaluatePoliz(postfixLines[row], row);
 		cout << "row " << row << endl;
-		flag++;
+		cout << endl;
+	}
+	for (auto x : table) {
+		cout << "table" << x.first << " " << x.second << "\n";
 	}
 	 for(int i = 0; i < infixLines.size(); i++) {
                 free(infixLines[i]);
