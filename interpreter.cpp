@@ -293,14 +293,15 @@ int Goto::getRow() {
 
 
 int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
-	Number* answer(0);
+//	Number* answer(0);
 	stack<Lexem *> stack;
+	cout << "st r " << row << endl;
 	for(int i = 0; i < poliz.size(); i++) {
-		cout << "iter: " << i << poliz[i] << endl;
-			if(!stack.empty()) {
+		//cout << "iter: " << i << endl;
+			/*if(!stack.empty()) {
 				cout << "stack: ";
 				cout << ((Number*)stack.top())->getValue() << endl;
-			}
+			}*/
 			if(poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VARIABLE) {
 				stack.push(poliz[i]);
 				continue;
@@ -315,20 +316,27 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 				cout << "res " << ress << endl;
 				if(!ress) {
 					cout << "stop in evPol if" << endl;
-					return lexemGoto->getRow();
+					cout << "prerow cycle " << lexemGoto->getRow() << endl;
+					return (lexemGoto->getRow());
 				}
 				cout << "stop in evPol end" << endl;
+				continue; 
 			}
 			if(((Oper *)poliz[i])->getType() == ELSE) {
+					cout << "prerowelse " << lexemGoto->getRow() << endl;
 				return lexemGoto->getRow(); 
 			}
 			if(((Oper *)poliz[i])->getType() == ENDIF || ((Oper*)poliz[i])->getType() == ENDWHILE) {
-				return (lexemGoto->getRow() + 1); 
+				//	cout << "prerow end " << (lexemGoto->getRow() + 1) << endl;
+				//return (lexemGoto->getRow() + 1);
+				continue; 
 			}
 			if(((Oper *)poliz[i])->getType() == GOTO) {
 				Variable *var = dynamic_cast<Variable *>(poliz[i]);
+				cout << "prerow  goto " << var->incLabel() << endl;
 				return var->incLabel(); 
 			}
+			//cout << "we are here" << endl;
 			Lexem *right = (Lexem *)stack.top();
 			stack.pop();
 			Lexem *left = (Lexem *)stack.top();
@@ -336,16 +344,20 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 			Oper *oper = dynamic_cast<Oper *>(poliz[i]);
 			Number *ans = oper->getValue(left, right);
 			stack.push(ans);
+			cout << "answer: " << ans->getValue() << endl;
 			continue;
 		}
 	}
-	answer = dynamic_cast<Number* >(stack.top());
+	cout << "we left" << endl;
+	//answer = dynamic_cast<Number* >(stack.top());
 	while(!stack.empty()) {
 		stack.pop();
 	}
-	cout << "answer " << answer->getValue() << endl;
-	delete answer;
-	return row + 1;
+//	cout << "answer " << answer->getValue() << endl;
+//	delete answer;
+	row ++;
+	cout << "prerow return " << row << endl;
+	return row;
 }
 
 bool isGoto(OPERATOR op) {
@@ -611,10 +623,12 @@ int main() {
 		print_universal(postfixLines[i]);
 	}
 	cout << endl;
+	int flag = 0;
 	int row = 0;
-	while(0 <= row && row < postfixLines.size()) {
+	while(0 <= row && row < postfixLines.size() /*&& flag < 5*/) {
 		row = evaluatePoliz(postfixLines[row], row);
 		cout << "row " << row << endl;
+		flag++;
 	}
 	 for(int i = 0; i < infixLines.size(); i++) {
                 free(infixLines[i]);
