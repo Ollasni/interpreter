@@ -80,11 +80,11 @@ public:
 };
 
 Lexem::Lexem() {
-//	std::cout << "NEW ELEM" << std::endl;
+	std::cout << "NEW ELEM" << std::endl;
 }
 
 Lexem::~Lexem() {
-//	cout << "DEL ELEM" << endl;
+	cout << "DEL ELEM" << endl;
 }
 
 LEXEM_TYPE Lexem::getLexType() {
@@ -294,9 +294,16 @@ int Goto::getRow() {
 	return row;
 }
 
+void free(std::vector <Number *> vec) {
+	for(int i = 0; i < vec.size(); i++) {
+		if(vec[i] != nullptr)
+			delete vec[i];
+	}
+}
 
 int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 	stack<Lexem *> stack;
+	vector <Number *> VectDelete;
 	for(int i = 0; i < poliz.size(); i++) {
 			if(poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VARIABLE) {
 				stack.push(poliz[i]);
@@ -310,17 +317,21 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 				int ress = ((Number *)rvalue)->getValue();
 				cout << "while cond " << ress << " ";
 				if(!ress) {
+					free(VectDelete);
 					return (lexemGoto->getRow());
 				}
 				continue; 
 			}
 			if(((Oper *)poliz[i])->getType() == ELSE) {
+				free(VectDelete);
 				return lexemGoto->getRow(); 
 			}
 			if(((Oper *)poliz[i])->getType() == ENDIF || ((Oper*)poliz[i])->getType() == ENDWHILE) {
+				free(VectDelete);
 				return (lexemGoto->getRow());
 			}
 			if(((Oper *)poliz[i])->getType() == GOTO) {
+				free(VectDelete);
 				return labels[((Variable *)poliz[i - 1])->getName()];
 			}
 			Lexem *right = (Lexem *)stack.top();
@@ -330,6 +341,7 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 			Oper *oper = dynamic_cast<Oper *>(poliz[i]);
 			Number *ans = oper->getValue(left, right);
 			stack.push(ans);
+			VectDelete.push_back(ans);
 			cout << "answer: " << ans->getValue() << " ";
 			continue;
 		}
@@ -337,8 +349,8 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 	while(!stack.empty()) {
 		stack.pop();
 	}
-	row ++;
-	return row;
+	free(VectDelete);
+	return row + 1;
 }
 
 bool isGoto(OPERATOR op) {
@@ -565,6 +577,8 @@ void free(std::vector <Lexem *> vec) {
 			delete vec[i];
 	}
 }
+
+
 
 int main() {
 
