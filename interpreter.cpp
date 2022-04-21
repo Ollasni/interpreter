@@ -6,6 +6,7 @@
 
 std::map<std::string, int> labels; 
 std::map<std::string, int> table;
+std::map<std::string, std::vector<int> > ArrayTable;
 
 using namespace std;
 
@@ -15,6 +16,8 @@ enum OPERATOR {
 	WHILE, ENDWHILE,
 	GOTO, ASSIGN, COLON,
 	LBRACKET, RBRACKET,
+	LQBRACKET, RQBRACKET,
+	DEREF,
 	OR,
 	AND,
 	BITTOR,
@@ -34,6 +37,8 @@ string OPERTEXT[] = {
 	"while", "endwhile",
 	"goto", ":=", ":",
 	"(", ")",
+	"[", "]",
+	"DEREF",
 	"or",
 	"and",
 	"|",
@@ -53,6 +58,8 @@ int PRIORITY [] = {
 	-2, -2,
 	-2, 0 , -2 ,
 	1, 1,
+	1, 1,
+	1,
 	2,
 	3,
 	4,
@@ -80,11 +87,9 @@ public:
 };
 
 Lexem::Lexem() {
-	std::cout << "NEW ELEM" << std::endl;
 }
 
 Lexem::~Lexem() {
-	cout << "DEL ELEM" << endl;
 }
 
 LEXEM_TYPE Lexem::getLexType() {
@@ -278,6 +283,35 @@ public:
 
 };
 
+class ArrayElem: public Lexem {
+	string name;
+	int index;
+public:
+	ArrayElem(string name1, int index1);
+	int getValue();
+	int setValue(int);
+};
+
+ArrayElem::ArrayElem(string name1, int index1) {
+	name = name1;
+	index = index1;
+}
+
+class Dereference : public Oper {
+public:
+	Dereference():Oper ((OPERATOR)DEREF) { }
+	ArrayElem *getValue(Variable &name2, int index) {
+		return new ArrayElem((name2.getName()), index);
+	}
+};
+int ArrayElem::getValue() {
+	return index;
+}
+
+int ArrayElem::setValue(int number) {
+	return ArrayTable[name][index] = number;
+}
+
 int Variable::incLabel() {
 
 	return labels[name];
@@ -322,11 +356,7 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 				}
 				continue; 
 			}
-			if(((Oper *)poliz[i])->getType() == ELSE) {
-				free(VectDelete);
-				return lexemGoto->getRow(); 
-			}
-			if(((Oper *)poliz[i])->getType() == ENDIF || ((Oper*)poliz[i])->getType() == ENDWHILE) {
+			if(((Oper *)poliz[i])->getType() == ELSE || ((Oper *)poliz[i])->getType() == ENDIF || ((Oper*)poliz[i])->getType() == ENDWHILE) {
 				free(VectDelete);
 				return (lexemGoto->getRow());
 			}
@@ -448,11 +478,12 @@ vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 			int resO = infixResO ->getType();
 			if(resO == OPERATOR(THEN))
 				continue;
-			if(resO == OPERATOR(LBRACKET)) {
+			if(resO == OPERATOR(LBRACKET) || resO == OPERATOR(LQBRACKET)) {
 				stack.push(infixResO);
 				continue;
 			}
 			if(resO == OPERATOR(RBRACKET)) {
+				cout << "false" << endl;
 				while((stack.top())->getType() != LBRACKET && !stack.empty()) {
 					postfix.push_back(stack.top());
 					stack.pop();
@@ -461,7 +492,20 @@ vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 					stack.pop();
 				}
 			}
+			if(resO == OPERATOR(RQBRACKET)) {
+				cout << "meow " << endl;
+				while(((stack.top())->getType() != LQBRACKET) && !stack.empty()) {
+					postfix.push_back(stack.top());
+					cout << "lala " << endl;
+					stack.pop();
+				}
+				if((stack.top())->getType() == LQBRACKET) {
+					postfix.push_back(new Oper(DEREF));
+					stack.pop();
+				}
+			}
 			else {
+			//	cout << "lala" << endl;
 				if(!stack.empty()) {
 					if((stack.top())->getPriority() >= ((Oper *)infix[i])->getPriority()) {
 						postfix.push_back(stack.top());
@@ -622,11 +666,11 @@ int main() {
 	cout << endl;
 	int flag = 0;
 	int row = 0;
-	while(0 <= row && row < postfixLines.size() /*&& flag < 5*/) {
-		row = evaluatePoliz(postfixLines[row], row);
+	//while(0 <= row && row < postfixLines.size() /*&& flag < 5*/) {
+	//	row = evaluatePoliz(postfixLines[row], row);
 	//	cout << "row " << row << endl;
-		cout << endl;
-	}
+	//	cout << endl;
+	//}
 	for (auto x : table) {
 		cout << "table " << x.first << " " << x.second << "\n";
 	}
