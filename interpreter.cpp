@@ -17,6 +17,7 @@ enum OPERATOR {
 	GOTO, ASSIGN, COLON,
 	LBRACKET, RBRACKET,
 	LQBRACKET, RQBRACKET,
+	ARRAY,
 	DEREF,
 	OR,
 	AND,
@@ -38,6 +39,7 @@ string OPERTEXT[] = {
 	"goto", ":=", ":",
 	"(", ")",
 	"[", "]",
+	"array"
 	"DEREF",
 	"or",
 	"and",
@@ -60,6 +62,7 @@ int PRIORITY [] = {
 	1, 1,
 	1, 1,
 	1,
+	1,
 	2,
 	3,
 	4,
@@ -74,7 +77,7 @@ int PRIORITY [] = {
 
 
 enum LEXEM_TYPE {
-	OPERATORS, NUMBER, VARIABLE
+	OPERATORS, NUMBER, VARIABLE, ARRAYS
 };
 
 class Lexem {
@@ -183,7 +186,68 @@ Oper::Oper(int ind) {
 	this->setType(OPERATORS);
 }
 
+class Goto: public Oper {
+	int row;
+public:
+	enum {UNDEFINED = -INT32_MAX };
+	Goto(OPERATOR opertype): Oper(opertype) {
+		row = UNDEFINED;
+	}
+	int getRow();
+	void setRow(int row);
+	void print();
+
+
+};
+
+class ArrayElem: public Lexem {
+	string name;
+	int index;
+public:
+	ArrayElem(string name1, int index1);
+	int getIndex();
+	string getName();
+	int setValue(int);
+	void setZero();
+};
+
+ArrayElem::ArrayElem(string name1, int index1) {
+	name = name1;
+	index = index1;
+	this->setType(ARRAYS);
+
+}
+
+class Dereference : public Oper {
+public:
+	Dereference():Oper ((OPERATOR)DEREF) { }
+	ArrayElem *getValue(Variable &name2, int index) {
+		return new ArrayElem((name2.getName()), index);
+	}
+};
+int ArrayElem::getIndex() {
+	return index;
+}
+
+string ArrayElem::getName() {
+	return name;
+}
+
+
+int ArrayElem::setValue(int number) {
+	return ArrayTable[name][index] = number;
+}
+
+void ArrayElem::setZero() {
+	for(int i = 0; i < index; i++) {
+		ArrayTable[name][i] = 0;
+	}
+}
+
+
 Number* Oper::getValue(Lexem *left, Lexem *right) {
+	ArrayElem *ArrayPtr = nullptr;
+	int flag = 0;
 	Number *leftCasted = nullptr, *rightCasted = nullptr;
 	int leftValue = 0, rightValue = 0;
 	Variable *leftPtr = nullptr, *rightPtr = nullptr;
@@ -202,8 +266,12 @@ Number* Oper::getValue(Lexem *left, Lexem *right) {
 	if(right->getLexType() == VARIABLE) {
         rightPtr = dynamic_cast<Variable *> (right);
 		rightValue = table[rightPtr->getName()];
-        }
-
+    }
+	
+	/*if(right->getLexType() == ARRAY && !flag) {
+        rightPtr = dynamic_cast<ArrayElem *> (right);
+		rightValue = ArrayTable[rightPtr->getName()][leftValue];
+    }*/
 	int answer = 0;
 	switch(getType()) {
 		case OR:
@@ -258,59 +326,20 @@ Number* Oper::getValue(Lexem *left, Lexem *right) {
 			answer = leftValue * rightValue;
 			break;
 		case ASSIGN:
-			if(leftPtr == nullptr) {
-				cout << "err ASSIGN" << endl;
-				exit(1);
+			if(left->getLexType() == ARRAYS) {
+				ArrayElem *leftPtrNew;
+				leftPtrNew = dynamic_cast<ArrayElem *> (left);
+				answer = leftPtrNew->setValue(rightValue);
 			}
+			else {
 				answer = leftPtr->setValueTable(rightValue);
 				cout << "setTable" << answer  << endl;
+			}
 			break;
 	}
 	return new Number(answer);
 }
 
-class Goto: public Oper {
-	int row;
-public:
-	enum {UNDEFINED = -INT32_MAX };
-	Goto(OPERATOR opertype): Oper(opertype) {
-		row = UNDEFINED;
-	}
-	int getRow();
-	void setRow(int row);
-	void print();
-
-
-};
-
-class ArrayElem: public Lexem {
-	string name;
-	int index;
-public:
-	ArrayElem(string name1, int index1);
-	int getValue();
-	int setValue(int);
-};
-
-ArrayElem::ArrayElem(string name1, int index1) {
-	name = name1;
-	index = index1;
-}
-
-class Dereference : public Oper {
-public:
-	Dereference():Oper ((OPERATOR)DEREF) { }
-	ArrayElem *getValue(Variable &name2, int index) {
-		return new ArrayElem((name2.getName()), index);
-	}
-};
-int ArrayElem::getValue() {
-	return index;
-}
-
-int ArrayElem::setValue(int number) {
-	return ArrayTable[name][index] = number;
-}
 
 int Variable::incLabel() {
 
@@ -335,9 +364,18 @@ void free(std::vector <Number *> vec) {
 	}
 }
 
+void free(std::vector <ArrayElem *> vec) {
+	for(int i = 0; i < vec.size(); i++) {
+		if(vec[i] != nullptr)
+			delete vec[i];
+	}
+}
+
 int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 	stack<Lexem *> stack;
 	vector <Number *> VectDelete;
+	vector <ArrayElem *>VectDelete2;
+	ArrayElem *ArrayPtr;
 	for(int i = 0; i < poliz.size(); i++) {
 			if(poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VARIABLE) {
 				stack.push(poliz[i]);
@@ -352,16 +390,36 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 				cout << "while cond " << ress << " ";
 				if(!ress) {
 					free(VectDelete);
+					free(VectDelete2);
 					return (lexemGoto->getRow());
 				}
 				continue; 
 			}
 			if(((Oper *)poliz[i])->getType() == ELSE || ((Oper *)poliz[i])->getType() == ENDIF || ((Oper*)poliz[i])->getType() == ENDWHILE) {
 				free(VectDelete);
+				free(VectDelete2);
 				return (lexemGoto->getRow());
 			}
+			if(((Oper *)poliz[i])->getType() == ARRAY) {
+				Lexem *rightPtr = stack.top();
+				stack.pop();
+				Lexem *leftPtr = stack.top();
+				stack.pop();
+				ArrayPtr = ((Dereference *)poliz[i])->getValue((Variable *)leftPtr, ((Number *)rightPtr)->getValue());
+				ArrayPtr->setZero();
+				VectDelete2.push_back(ArrayPtr);
+			}
+			if(((Oper*)poliz[i])->getType() == DEREF) {
+				Lexem *rightN = stack.top();
+				stack.pop();
+				Lexem *leftN = stack.top();
+				stack.pop();
+				stack.push(ArrayTable[((Variable *)leftN)->getName()][((Number *)rightN)->getValue()]);
+			}
+
 			if(((Oper *)poliz[i])->getType() == GOTO) {
 				free(VectDelete);
+				free(VectDelete2);
 				return labels[((Variable *)poliz[i - 1])->getName()];
 			}
 			Lexem *right = (Lexem *)stack.top();
@@ -380,6 +438,7 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 		stack.pop();
 	}
 	free(VectDelete);
+	free(VectDelete2);
 	return row + 1;
 }
 
