@@ -36,10 +36,12 @@ make
 1. simple arithmetic operations
 	
 	2 + 9
+	
 	6 / 2
 2. variables
 
-	x := 3
+	x := 3;
+	
 	x + 1
 3. goto labels:
 	
