@@ -4,6 +4,7 @@ MKDIR         = mkdir
 DEL_DIR       = rmdir
 FLAGS	      = -c -I./include -fpic -shared -fsanitize=address,leak
 
+
 all: lib lib/libconst.so bin lib/libfunctions.so lib/libInternalFunctions.so lib/liblexem.so lib/libsemantic.so  bin/main 
 
 lib:
