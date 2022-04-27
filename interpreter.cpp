@@ -5,7 +5,7 @@
 #include <map>
 
 std::map<std::string, int> labels; 
-std::map<std::string, int> table;
+std::map<std::string, int> VarTable;
 std::map<std::string, std::vector<int> > ArrayTable;
 
 using namespace std;
@@ -18,7 +18,6 @@ enum OPERATOR {
 	LBRACKET, RBRACKET,
 	LQBRACKET, RQBRACKET,
 	ARRAY,
-	DEREF,
 	OR,
 	AND,
 	BITTOR,
@@ -39,8 +38,7 @@ string OPERTEXT[] = {
 	"goto", ":=", ":",
 	"(", ")",
 	"[", "]",
-	"array"
-	"DEREF",
+	"array",
 	"or",
 	"and",
 	"|",
@@ -61,7 +59,6 @@ int PRIORITY [] = {
 	-2, 0 , -2 ,
 	1, 1,
 	1, 1,
-	1,
 	1,
 	2,
 	3,
@@ -103,8 +100,12 @@ void Lexem::setType(LEXEM_TYPE lexem) {
 	lexem_type = lexem;
 }
 
+class Item:public Lexem {
+public:
+	int virtual getValue() = 0;
+};
 
-class Variable: public Lexem {
+class Variable: public Item {
 	std::string name;
 public:
 	Variable(const string &name);
@@ -113,6 +114,8 @@ public:
 	int setValueLabels(int value);
 	string getName();
 	int incLabel();
+	int getValueLabels();
+
 
 };
 
@@ -122,25 +125,31 @@ string Variable::getName() {
 }
 
 int Variable::setValueTable(int value) {
-	return table[name] = value;
+	return VarTable[name] = value;
 }
 
 int Variable::setValueLabels(int value) {
 	return labels[name] = value;
 }
+int Variable::getValueLabels() {
+	return labels[name];
+}
+
+
+
 int Variable::getValue() {
-	return table[name];
+	return VarTable[name];
 }
 
 Variable::Variable(const string &name){
 	Variable::name = name;
-	table[name] = 0;
+	VarTable[name] = 0;
 	this->setType(VARIABLE);
 }
 
 
 
-class Number: public Lexem {
+class Number: public Item {
 	int value;
 public:
 	Number(int value);
@@ -186,6 +195,7 @@ Oper::Oper(int ind) {
 	this->setType(OPERATORS);
 }
 
+
 class Goto: public Oper {
 	int row;
 public:
@@ -200,78 +210,66 @@ public:
 
 };
 
-class ArrayElem: public Lexem {
+class ArrayElem: public Item {
 	string name;
 	int index;
 public:
 	ArrayElem(string name1, int index1);
-	int getIndex();
-	string getName();
+	int getValue();
 	int setValue(int);
-	void setZero();
 };
 
 ArrayElem::ArrayElem(string name1, int index1) {
 	name = name1;
 	index = index1;
 	this->setType(ARRAYS);
-
 }
 
-class Dereference : public Oper {
-public:
-	Dereference():Oper ((OPERATOR)DEREF) { }
-	ArrayElem *getValue(Variable &name2, int index) {
-		return new ArrayElem((name2.getName()), index);
-	}
-};
-int ArrayElem::getIndex() {
-	return index;
-}
 
-string ArrayElem::getName() {
-	return name;
+int ArrayElem::getValue() {
+	return ArrayTable[name][index];
 }
-
 
 int ArrayElem::setValue(int number) {
 	return ArrayTable[name][index] = number;
 }
 
-void ArrayElem::setZero() {
-	for(int i = 0; i < index; i++) {
-		ArrayTable[name][i] = 0;
+int Variable::incLabel() {
+
+	return labels[name];
+}
+
+void Goto::print() {
+	std::cout << "[<row " << row << ">" << OPERTEXT[this->getType()] << "] ";
+}
+
+void Goto::setRow(int row) {
+	Goto::row = row;
+}
+int Goto::getRow() {
+	return row;
+}
+
+void deleteVector(std::vector <Number *> vec) {
+	for(int i = 0; i < vec.size(); i++) {
+		if(vec[i] != nullptr)
+			delete vec[i];
+	}
+}
+void deleteVector(std::vector <ArrayElem *> vec) {
+	for(int i = 0; i < vec.size(); i++) {
+		if(vec[i] != nullptr)
+			delete vec[i];
 	}
 }
 
 
 Number* Oper::getValue(Lexem *left, Lexem *right) {
-	ArrayElem *ArrayPtr = nullptr;
-	int flag = 0;
-	Number *leftCasted = nullptr, *rightCasted = nullptr;
 	int leftValue = 0, rightValue = 0;
-	Variable *leftPtr = nullptr, *rightPtr = nullptr;
-	if(left->getLexType() == NUMBER) {
-		leftCasted = dynamic_cast<Number *>(left);
-		leftValue = leftCasted->getValue();
-	}
-	if(right->getLexType() == NUMBER) {
-		rightCasted = dynamic_cast<Number *>(right);
-		rightValue = rightCasted->getValue();
-	}
-	if(left->getLexType() == VARIABLE) {
-		leftPtr = dynamic_cast<Variable *> (left);
-		leftValue = table[leftPtr->getName()];
-	}
-	if(right->getLexType() == VARIABLE) {
-        rightPtr = dynamic_cast<Variable *> (right);
-		rightValue = table[rightPtr->getName()];
-    }
-	
-	/*if(right->getLexType() == ARRAY && !flag) {
-        rightPtr = dynamic_cast<ArrayElem *> (right);
-		rightValue = ArrayTable[rightPtr->getName()][leftValue];
-    }*/
+	Variable *leftPtr = (Variable *)left;
+	ArrayElem *leftPtr2 = (ArrayElem *)left;
+	leftValue = ((Item *)left)->getValue();
+	rightValue = ((Item *)right)->getValue();
 	int answer = 0;
 	switch(getType()) {
 		case OR:
@@ -326,102 +324,73 @@ Number* Oper::getValue(Lexem *left, Lexem *right) {
 			answer = leftValue * rightValue;
 			break;
 		case ASSIGN:
-			if(left->getLexType() == ARRAYS) {
-				ArrayElem *leftPtrNew;
-				leftPtrNew = dynamic_cast<ArrayElem *> (left);
-				answer = leftPtrNew->setValue(rightValue);
+			if(leftPtr == nullptr && leftPtr2 == nullptr) {
+				cout << "err ASSIGN" << endl;
+				exit(1);
 			}
-			else {
-				answer = leftPtr->setValueTable(rightValue);
-				cout << "setTable" << answer  << endl;
-			}
+				if(left->getLexType() == VARIABLE) {
+					answer =leftPtr->setValueTable(rightValue);
+					cout << "setVarTable" << answer  << endl;
+				}
+				if(left->getLexType() == ARRAYS) {
+					answer = leftPtr2->setValue(rightValue);
+					cout << "setTable" << answer  << endl;
+				}
 			break;
 	}
 	return new Number(answer);
-}
-
-
-int Variable::incLabel() {
-
-	return labels[name];
-}
-
-void Goto::print() {
-	std::cout << "[<row " << row << ">" << OPERTEXT[this->getType()] << "] ";
-}
-
-void Goto::setRow(int row) {
-	Goto::row = row;
-}
-int Goto::getRow() {
-	return row;
-}
-
-void free(std::vector <Number *> vec) {
-	for(int i = 0; i < vec.size(); i++) {
-		if(vec[i] != nullptr)
-			delete vec[i];
-	}
-}
-
-void free(std::vector <ArrayElem *> vec) {
-	for(int i = 0; i < vec.size(); i++) {
-		if(vec[i] != nullptr)
-			delete vec[i];
-	}
 }
 
 int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 	stack<Lexem *> stack;
 	vector <Number *> VectDelete;
 	vector <ArrayElem *>VectDelete2;
-	ArrayElem *ArrayPtr;
 	for(int i = 0; i < poliz.size(); i++) {
-			if(poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VARIABLE) {
+		if(poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VARIABLE) {
 				stack.push(poliz[i]);
 				continue;
 		}
 		if(poliz[i]->getLexType() == OPERATORS) {
+			Oper *lexem = (Oper *)poliz[i];
 			Goto *lexemGoto = (Goto *)poliz[i];
-			if(((Oper *)poliz[i])->getType() == IF || ((Oper *)poliz[i])->getType() == WHILE) {
+			if(lexem->getType() == IF || lexem->getType() == WHILE) {
 				Lexem *rvalue = stack.top();
 				stack.pop();
 				int ress = ((Number *)rvalue)->getValue();
 				cout << "while cond " << ress << " ";
 				if(!ress) {
-					free(VectDelete);
-					free(VectDelete2);
+					deleteVector(VectDelete);
+					deleteVector(VectDelete2);
 					return (lexemGoto->getRow());
 				}
 				continue; 
 			}
-			if(((Oper *)poliz[i])->getType() == ELSE || ((Oper *)poliz[i])->getType() == ENDIF || ((Oper*)poliz[i])->getType() == ENDWHILE) {
-				free(VectDelete);
-				free(VectDelete2);
+			if(lexem->getType() == ELSE || lexem->getType() == ENDIF || lexem->getType() == ENDWHILE) {
+				deleteVector(VectDelete);
+				deleteVector(VectDelete2);
 				return (lexemGoto->getRow());
 			}
-			if(((Oper *)poliz[i])->getType() == ARRAY) {
-				Lexem *rightPtr = stack.top();
+			if(lexem->getType() == GOTO) {
+				deleteVector(VectDelete);
+				deleteVector(VectDelete2);
+				return ((Variable *)poliz[i - 1])->getValueLabels();
+			}
+			if(lexem->getType() == ARRAY || lexem->getType() == LQBRACKET) {
+				ArrayElem *elemArr = nullptr;
+				Lexem* rightPtr = stack.top();
 				stack.pop();
 				Lexem *leftPtr = stack.top();
 				stack.pop();
-				ArrayPtr = ((Dereference *)poliz[i])->getValue((Variable *)leftPtr, ((Number *)rightPtr)->getValue());
-				ArrayPtr->setZero();
-				VectDelete2.push_back(ArrayPtr);
-			}
-			if(((Oper*)poliz[i])->getType() == DEREF) {
-				Lexem *rightN = stack.top();
-				stack.pop();
-				Lexem *leftN = stack.top();
-				stack.pop();
-				stack.push(ArrayTable[((Variable *)leftN)->getName()][((Number *)rightN)->getValue()]);
-			}
-
-			if(((Oper *)poliz[i])->getType() == GOTO) {
-				free(VectDelete);
-				free(VectDelete2);
-				return labels[((Variable *)poliz[i - 1])->getName()];
-			}
+				if(lexem->getType() == ARRAY) {
+					ArrayTable[((Variable *)leftPtr)->getName()] = vector<int>(((Item *)rightPtr)->getValue(), 0);
+				}
+				if(lexem->getType() == LQBRACKET) {
+					elemArr = new ArrayElem(((Variable *)leftPtr)->getName(), ((Item *)rightPtr)->getValue());
+					stack.push(elemArr);
+					VectDelete2.push_back(elemArr);
+				}
+				continue;
+			}	
 			Lexem *right = (Lexem *)stack.top();
 			stack.pop();
 			Lexem *left = (Lexem *)stack.top();
@@ -437,8 +406,8 @@ int evaluatePoliz(std::vector<Lexem *> poliz, int row) {
 	while(!stack.empty()) {
 		stack.pop();
 	}
-	free(VectDelete);
-	free(VectDelete2);
+	deleteVector(VectDelete);
+	deleteVector(VectDelete2);
 	return row + 1;
 }
 
@@ -518,15 +487,15 @@ vector<Lexem *> parseLexem (string codeline) {
 }
 
 
-
 vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 	vector<Lexem *> postfix;
 	stack <Oper *> stack;
 	for(int i = 0; i < infix.size(); i++) {
+
 		if(infix[i] == nullptr)
 			continue;
 		if(infix[i]->getLexType() == VARIABLE) {
-				postfix.push_back(infix[i]);
+			postfix.push_back(infix[i]);
 		}
 		if(infix[i]->getLexType() == NUMBER) {
 			postfix.push_back(infix[i]);
@@ -552,19 +521,16 @@ vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 				}
 			}
 			if(resO == OPERATOR(RQBRACKET)) {
-				cout << "meow " << endl;
 				while(((stack.top())->getType() != LQBRACKET) && !stack.empty()) {
 					postfix.push_back(stack.top());
-					cout << "lala " << endl;
 					stack.pop();
 				}
 				if((stack.top())->getType() == LQBRACKET) {
-					postfix.push_back(new Oper(DEREF));
+					postfix.push_back(stack.top());
 					stack.pop();
 				}
 			}
 			else {
-			//	cout << "lala" << endl;
 				if(!stack.empty()) {
 					if((stack.top())->getPriority() >= ((Oper *)infix[i])->getPriority()) {
 						postfix.push_back(stack.top());
@@ -674,7 +640,7 @@ void print_universal(std::vector < Lexem *> vect) {
 }
 
 
-void free(std::vector <Lexem *> vec) {
+void deleteVector(std::vector <Lexem *> vec) {
 	for(int i = 0; i < vec.size(); i++) {
 		if(vec[i] != nullptr)
 			delete vec[i];
@@ -698,8 +664,8 @@ int main() {
 	}
         cout << endl;
 
-	for (auto x : table) {
-		cout << "table" << x.first << " " << x.second << "\n";
+	for (auto x : VarTable) {
+		cout << "VarTable" << x.first << " " << x.second << "\n";
 	}
 
 	initLabels(infixLines);
@@ -712,8 +678,8 @@ int main() {
 		cout << "labels empty" << endl;
 	}
 	
-	if(table.empty()) {
-		cout << "table empty" << endl;
+	if(VarTable.empty()) {
+		cout << "VarTable empty" << endl;
 	}
 	
 	for(const auto &infix: infixLines)
@@ -725,16 +691,16 @@ int main() {
 	cout << endl;
 	int flag = 0;
 	int row = 0;
-	//while(0 <= row && row < postfixLines.size() /*&& flag < 5*/) {
-	//	row = evaluatePoliz(postfixLines[row], row);
-	//	cout << "row " << row << endl;
-	//	cout << endl;
-	//}
-	for (auto x : table) {
-		cout << "table " << x.first << " " << x.second << "\n";
+	while(0 <= row && row < postfixLines.size()) {
+		row = evaluatePoliz(postfixLines[row], row);
+		cout << "row " << row << endl;
+		cout << endl;
+	}
+	for (auto x : VarTable) {
+		cout << "VarTable " << x.first << " " << x.second << "\n";
 	}
 	 for(int i = 0; i < infixLines.size(); i++) {
-                free(infixLines[i]);
+                deleteVector(infixLines[i]);
         }
 
 	return 0;
