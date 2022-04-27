@@ -34,28 +34,30 @@ make
 **Examples**
 
 1. simple arithmetic operations
-	'2 + 9'
 	
-	'6 / 2'
+	2 + 9
+	6 / 2
 2. variables
-	'x := 3
-	
-	x + 1'
+
+	x := 3
+	x + 1
 3. goto labels:
-	'1 + 2
 	
+	1 + 2
 	goto L
 	3 - 5
 	L:
-	1 + 2'
+	1 + 2
 4. conditions:
-	'x := 1
+	
+	x := 1
 	while x > 5 then
 	x++
 	endwhile
-	1 + 3'
+	1 + 3
 5. arrays:
-	'a array 5
+	
+	a array 5
 	a[4] := 3
-	a[4] - 1'
+	a[4] - 1
 
