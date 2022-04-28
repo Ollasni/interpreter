@@ -11,36 +11,6 @@ extern std::map<std::string, int> labels;
 extern std::map<std::string, int> VarTable;
 extern std::map<std::string, std::vector<int> > ArrayTable;
 
-vector<Lexem *> parseLexem (string codeline) {
-	vector<Lexem *> infix;
-	int i;
-	for(i = 0; i < codeline.size(); i++) {
-		Oper *ptrO = checkOperator(codeline, &i);
-		if(ptrO) {
-			infix.push_back(ptrO);
-			continue;
-		}
-		Number *ptrN = checkNumber(codeline, &i);
-		if(ptrN) {
-			infix.push_back(ptrN);
-			i--;
-			continue;
-		}
-		Variable *ptrV = checkVariable(codeline, &i);
-		if(ptrV) {
-			infix.push_back(ptrV);
-			i--;
-			continue;
-		}
-		if(codeline[i] == ' ' || codeline[i] == '\t')
-			continue;
-		cout << "err"  << i << endl;
-
-	}
-	return infix;
-}
-
-
 vector<Lexem *> buildPoliz(std::vector <Lexem *> infix) {
 	vector<Lexem *> postfix;
 	stack <Oper *> stack;
