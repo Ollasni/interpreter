@@ -181,3 +181,32 @@ int ArrayElem::getValue() {
 int ArrayElem::setValue(int number) {
 	return ArrayTable[name][index] = number;
 }
+
+vector<Lexem *> parseLexem (string codeline) {
+	vector<Lexem *> infix;
+	int i;
+	for(i = 0; i < codeline.size(); i++) {
+		Oper *ptrO = checkOperator(codeline, &i);
+		if(ptrO) {
+			infix.push_back(ptrO);
+			continue;
+		}
+		Number *ptrN = checkNumber(codeline, &i);
+		if(ptrN) {
+			infix.push_back(ptrN);
+			i--;
+			continue;
+		}
+		Variable *ptrV = checkVariable(codeline, &i);
+		if(ptrV) {
+			infix.push_back(ptrV);
+			i--;
+			continue;
+		}
+		if(codeline[i] == ' ' || codeline[i] == '\t')
+			continue;
+		cout << "err"  << i << endl;
+
+	}
+	return infix;
+}
