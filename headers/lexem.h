@@ -7,7 +7,6 @@ extern std::map<std::string, int> labels;
 extern std::map<std::string, int> VarTable;
 extern std::map<std::string, std::vector<int> > ArrayTable;
 
-
 class Lexem {
 	LEXEM_TYPE lexem_type;
 public:
@@ -76,6 +75,13 @@ public:
 	int setValue(int);
 };
 
-	int setValue(int);
-};
-
+void deleteVector(std::vector <Number *> vec);
+void deleteVector(std::vector <Lexem *> vec);
+void deleteVector(std::vector <ArrayElem *> vec);
+void print_universal(std::vector < Lexem *> vect); 
+void initLabels(std::vector < vector<Lexem *> > &infix);
+void initJumps(std::vector < vector<Lexem *> > &infix);
+vector<Lexem *> parseLexem (string codeline);
+vector<Lexem *> buildPoliz(std::vector <Lexem *> infix);
+int evaluatePoliz(std::vector<Lexem *> poliz, int row);
+vector<Lexem *> buildPoliz(std::vector <Lexem *> infix);
